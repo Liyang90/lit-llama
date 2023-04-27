@@ -7,6 +7,8 @@ from typing import Optional
 import lightning as L
 import torch
 
+import torch_xla.core.xla_model as xm
+
 from lit_llama import LLaMA, Tokenizer
 from lit_llama.utils import EmptyInitOnDevice, lazy_load, llama_model_lookup
 
@@ -41,6 +43,7 @@ def generate(
     empty[:T] = idx
     idx = empty
 
+    xm.mark_step()
     # generate max_new_tokens tokens
     for t in range(T, T_new):
         # ignore the not-filled-yet tokens
@@ -62,6 +65,7 @@ def generate(
 
         # concatenate the new generation
         idx[t] = idx_next
+        xm.mark_step()
 
         # if <eos> token is triggered, return the output (stop generation)
         if idx_next == eos_id:
@@ -96,6 +100,7 @@ def main(
             ``"llm.int8"``: LLM.int8() mode,
             ``"gptq.int4"``: GPTQ 4-bit mode.
     """
+    torch.manual_seed(1)
     if not checkpoint_path:
         checkpoint_path = Path(f"./checkpoints/lit-llama/7B/lit-llama.pth")
     if not tokenizer_path:
